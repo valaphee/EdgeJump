@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.valaphee.edgejump.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"ClientPlayerEntityMixin",
+		"ControlsOptionsScreenMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
