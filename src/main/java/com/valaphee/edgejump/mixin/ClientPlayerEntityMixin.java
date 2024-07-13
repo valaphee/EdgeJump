@@ -19,6 +19,8 @@ package com.valaphee.edgejump.mixin;
 import com.mojang.authlib.GameProfile;
 import com.valaphee.edgejump.EdgeJump;
 import lombok.SneakyThrows;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.MappingResolver;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
@@ -27,24 +29,22 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.*;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 
 import java.lang.reflect.Method;
 
 @Mixin(ClientPlayerEntity.class)
 public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity {
-	private static final Method IS_SPACE_AROUND_PLAYER_EMPTY;
-	private static final Method METHOD_30263;
 	@Shadow private int ticksToNextAutojump;
 
 	public ClientPlayerEntityMixin(ClientWorld world, GameProfile profile) {
 		super(world, profile);
 	}
 
-	@SneakyThrows
     @Override
 	protected Vec3d adjustMovementForSneaking(Vec3d movement, MovementType type) {
 		float stepHeight = getStepHeight();
-		if (getAbilities().flying || movement.y > 0.0 || !(boolean)METHOD_30263.invoke(this, stepHeight)) {
+		if (getAbilities().flying || movement.y > 0.0 || !method_30263(stepHeight)) {
 			return movement;
 		}
 
@@ -54,7 +54,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 		double stepX = Math.signum(moveX) * threshold;
 		double stepZ = Math.signum(moveZ) * threshold;
 
-		while (moveX != 0.0 && (boolean) IS_SPACE_AROUND_PLAYER_EMPTY.invoke(this, moveX, 0.0, stepHeight)) {
+		while (moveX != 0.0 && isSpaceAroundPlayerEmpty(moveX, 0.0, stepHeight)) {
 			if (Math.abs(moveX) <= threshold) {
 				moveX = 0.0;
 				break;
@@ -62,7 +62,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 			moveX -= stepX;
 		}
 
-		while (moveZ != 0.0 && (boolean) IS_SPACE_AROUND_PLAYER_EMPTY.invoke(this, 0.0, moveZ, stepHeight)) {
+		while (moveZ != 0.0 && isSpaceAroundPlayerEmpty(0.0, moveZ, stepHeight)) {
 			if (Math.abs(moveZ) <= threshold) {
 				moveZ = 0.0;
 				break;
@@ -70,7 +70,7 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 			moveZ -= stepZ;
 		}
 
-		while (moveX != 0.0 && moveZ != 0.0 && (boolean) IS_SPACE_AROUND_PLAYER_EMPTY.invoke(this, moveX, moveZ, stepHeight)) {
+		while (moveX != 0.0 && moveZ != 0.0 && isSpaceAroundPlayerEmpty(moveX, moveZ, stepHeight)) {
 			moveX = Math.abs(moveX) <= threshold ? 0.0 : moveX - stepX;
 			if (Math.abs(moveZ) <= threshold) {
 				moveZ = 0.0;
@@ -88,14 +88,14 @@ public abstract class ClientPlayerEntityMixin extends AbstractClientPlayerEntity
 		return movement;
 	}
 
-	static {
-		try {
-			IS_SPACE_AROUND_PLAYER_EMPTY = PlayerEntity.class.getDeclaredMethod("isSpaceAroundPlayerEmpty", double.class, double.class, float.class);
-			IS_SPACE_AROUND_PLAYER_EMPTY.setAccessible(true);
-			METHOD_30263 = PlayerEntity.class.getDeclaredMethod("method_30263", float.class);
-			METHOD_30263.setAccessible(true);
-		} catch (Throwable thrown) {
-			throw new ExceptionInInitializerError(thrown);
-		}
+	@Unique
+	private boolean method_30263(float stepHeight) {
+		return isOnGround() || fallDistance < stepHeight && !isSpaceAroundPlayerEmpty(0.0, 0.0, stepHeight - fallDistance);
+	}
+
+	@Unique
+	private boolean isSpaceAroundPlayerEmpty(double offsetX, double offsetZ, float stepHeight) {
+		Box box = this.getBoundingBox();
+		return getWorld().isSpaceEmpty(this, new Box(box.minX + offsetX, box.minY - (double)stepHeight - MathHelper.EPSILON, box.minZ + offsetZ, box.maxX + offsetX, box.minY, box.maxZ + offsetZ));
 	}
 }

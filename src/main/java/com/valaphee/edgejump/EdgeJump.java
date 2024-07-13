@@ -35,10 +35,13 @@ public class EdgeJump implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("edge-jump");
 	public static SimpleOption<Boolean> EDGE_JUMP;
 
+	public EdgeJump() {
+		EDGE_JUMP = SimpleOption.ofBoolean("options.edgeJump", true, value -> saveConfig());
+	}
+
 	@Override
 	public void onInitialize() {
 		loadConfig();
-		EDGE_JUMP = SimpleOption.ofBoolean("options.edgeJump", true, value -> saveConfig());
 	}
 
 	private void loadConfig() {
